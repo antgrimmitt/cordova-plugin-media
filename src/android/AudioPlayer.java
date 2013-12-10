@@ -24,6 +24,8 @@ import android.media.MediaPlayer.OnCompletionListener;
 import android.media.MediaPlayer.OnErrorListener;
 import android.media.MediaPlayer.OnPreparedListener;
 import android.media.MediaRecorder;
+import android.media.audiofx.Equalizer;
+import android.media.audiofx.Visualizer;
 import android.os.Environment;
 import android.util.Log;
 
@@ -96,11 +98,15 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
         this.audioFile = file;
         this.recorder = new MediaRecorder();
 
+        Log.d(LOG_TAG, "cordova test 2");
+
         if (Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)) {
             this.tempFile = Environment.getExternalStorageDirectory().getAbsolutePath() + "/tmprecording.3gp";
         } else {
             this.tempFile = "/data/data/" + handler.cordova.getActivity().getPackageName() + "/cache/tmprecording.3gp";
         }
+
+//        readyPlayer(audioFile);
 
     }
 
@@ -211,13 +217,7 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
      * @param file              The name of the audio file.
      */
     public void startPlaying(String file) {
-        if (this.readyPlayer(file) && this.player != null) {
-            this.player.start();
-            this.setState(STATE.MEDIA_RUNNING);
-            this.seekOnPrepared = 0; //insures this is always reset
-        } else {
-            this.prepareOnly = false;
-        }
+        getWave();
     }
 
     /**
@@ -552,4 +552,50 @@ public class AudioPlayer implements OnCompletionListener, OnPreparedListener, On
                 this.duration = getDurationInSeconds();
             }
     }
+
+    public void getWave() {
+        System.out.println("org.apache.cordova.media.AudioPlayer.getWave");
+        if (this.player == null) {
+            this.player = new MediaPlayer();
+        }
+        try {
+            this.loadAudioFile(audioFile);
+        } catch (Exception e) {
+            this.handler.webView.sendJavascript("cordova.require('org.apache.cordova.media.Media').onStatus('" + this.id + "', "+MEDIA_ERROR+", { \"code\":"+MEDIA_ERR_ABORTED+"});");
+        }
+
+        Equalizer mEqualizer = new Equalizer(0, player.getAudioSessionId());
+        Visualizer mVisualizer = new Visualizer(player.getAudioSessionId());
+
+        final String pid = id;
+        System.out.println("pid = " + pid);
+        mVisualizer.setCaptureSize(Visualizer.getCaptureSizeRange()[1]);
+
+        mVisualizer.setDataCaptureListener(new Visualizer.OnDataCaptureListener() {
+            @Override
+            public void onWaveFormDataCapture(Visualizer visualizer, byte[] waveform, int samplingRate) {
+                System.out.println("org.apache.cordova.media.AudioPlayer.onWaveFormDataCapture");
+                System.out.println("waveform = " + waveform.toString());
+                StringBuilder sb = new StringBuilder();
+                for (byte b : waveform) {
+                    sb.append(b + ",");
+                }
+
+                System.out.println("sb = " + sb);
+
+                AudioPlayer.this.handler.webView.sendJavascript("cordova.require('org.apache.cordova.media.Media').onWave('"+ pid +"','" + sb.toString() + "');");
+
+            }
+
+            @Override
+            public void onFftDataCapture(Visualizer visualizer, byte[] fft, int samplingRate) {
+                System.out.println("org.apache.cordova.media.AudioPlayer.onFftDataCapture");
+                System.out.println("fft = " + fft.toString());
+
+            }
+        }, Visualizer.getMaxCaptureRate()/2, true,false);
+        mVisualizer.setEnabled(true);
+        player.start();
+    }
 }
+

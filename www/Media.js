@@ -1,4 +1,4 @@
-/*
+cordova.define("org.apache.cordova.media.Media", function(require, exports, module) {/*
  *
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -124,6 +124,12 @@ Media.prototype.getCurrentPosition = function(success, fail) {
     }, fail, "Media", "getCurrentPositionAudio", [this.id]);
 };
 
+
+
+Media.prototype.getWave = function(success, fail) {
+        exec(null, fail, "Media", "wave", [this.id, this.src]);
+}
+
 /**
  * Start recording audio file.
  */
@@ -192,4 +198,11 @@ Media.onStatus = function(id, msgType, value) {
 
 };
 
+Media.onWave = function (id, wave) {
+    console.log("wave" + wave);
+    var media = mediaObjects[id];
+    media.successCallback(wave);
+};
+
 module.exports = Media;
+});

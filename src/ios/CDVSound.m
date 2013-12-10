@@ -20,6 +20,7 @@
 #import "CDVSound.h"
 #import <Cordova/NSArray+Comparisons.h>
 #import <Cordova/CDVJSON.h>
+#import <AVFoundation/AVFoundation.h>
 
 #define DOCUMENTS_SCHEME_PREFIX @"documents://"
 #define HTTP_SCHEME_PREFIX @"http://"
@@ -288,6 +289,7 @@
 
 #pragma unused(callbackId)
     NSString* mediaId = [command.arguments objectAtIndex:0];
+    self.mediaIdString = mediaId;
     NSString* resourcePath = [command.arguments objectAtIndex:1];
     NSDictionary* options = [command.arguments objectAtIndex:2 withDefault:nil];
 
@@ -335,6 +337,14 @@
                 }
 
                 [audioFile.player play];
+                _audioPlayer = audioFile.player;
+
+                NSTimer *timer = [NSTimer timerWithTimeInterval:1.0/60.0 target:self selector:@selector(update) userInfo:nil repeats:YES];
+                [[NSRunLoop mainRunLoop] addTimer:timer forMode:NSDefaultRunLoopMode];
+                
+//                CADisplayLink *dpLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(update)];
+//                [dpLink addToRunLoop:[NSRunLoop currentRunLoop] forMode:NSRunLoopCommonModes];
+                
                 double position = round(audioFile.player.duration * 1000) / 1000;
                 jsString = [NSString stringWithFormat:@"%@(\"%@\",%d,%.3f);\n%@(\"%@\",%d,%d);", @"cordova.require('org.apache.cordova.media.Media').onStatus", mediaId, MEDIA_DURATION, position, @"cordova.require('org.apache.cordova.media.Media').onStatus", mediaId, MEDIA_STATE, MEDIA_RUNNING];
                 [self.commandDelegate evalJs:jsString];
@@ -373,6 +383,7 @@
 
     if ([resourceURL isFileURL]) {
         audioFile.player = [[CDVAudioPlayer alloc] initWithContentsOfURL:resourceURL error:&playerError];
+        [audioFile.player setMeteringEnabled:YES];
     } else {
         NSMutableURLRequest* request = [NSMutableURLRequest requestWithURL:resourceURL];
         NSString* userAgent = [self.commandDelegate userAgent];
@@ -395,6 +406,7 @@
             [data writeToFile:filePath atomically:YES];
             NSURL* fileURL = [NSURL fileURLWithPath:filePath];
             audioFile.player = [[CDVAudioPlayer alloc] initWithContentsOfURL:fileURL error:&playerError];
+            [audioFile.player setMeteringEnabled:YES];
         }
     }
 
@@ -673,6 +685,51 @@
     }
     [self.commandDelegate evalJs:jsString];
 }
+
+
+
+- (void)update
+{
+    if (_audioPlayer.playing )
+    {
+        [_audioPlayer updateMeters];
+        
+        float power = 0.0f;
+
+
+        
+        
+//-------------------------------------------//
+//          Use this version to              //
+//
+//        for (int i = 0; i < [_audioPlayer numberOfChannels]; i++) {
+//            power += [_audioPlayer averagePowerForChannel:i];
+//            __block NSString* jsString = nil;
+//            NSLog(@"Scale of meter %f", power);
+//            jsString = [NSString stringWithFormat:@"%@(\"%@\", %f, %d);", @"cordova.require('org.apache.cordova.media.Media').onUpdate", self.mediaIdString , power+120, i];
+//            [self.commandDelegate evalJs:jsString];
+//
+//            
+//            
+//        }
+//        power /= [_audioPlayer numberOfChannels];
+        
+        
+        for (int i = 0; i < [_audioPlayer numberOfChannels]; i++) {
+            power += [_audioPlayer averagePowerForChannel:i];
+        }
+        power /= [_audioPlayer numberOfChannels];
+        
+        __block NSString* jsString = nil;
+//       NSLog(@"Scale of meter %f", power);
+        jsString = [NSString stringWithFormat:@"%@(\"%@\", %f);", @"cordova.require('org.apache.cordova.media.Media').onWave", self.mediaIdString , power+120];
+        [self.commandDelegate evalJs:jsString];
+        
+        
+    }
+    //    emitterLayer setValue:@(scale) forKeyPath:@"emitterCells.cell.emitterCells.childCell.scale"];
+}
+
 
 - (void)onMemoryWarning
 {

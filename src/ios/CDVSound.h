@@ -17,6 +17,7 @@
  under the License.
  */
 
+
 #import <Foundation/Foundation.h>
 #import <AudioToolbox/AudioServices.h>
 #import <AVFoundation/AVFoundation.h>
@@ -78,7 +79,14 @@ typedef NSUInteger CDVMediaMsg;
 
 @property (nonatomic, strong) CDVAudioRecorder* recorder;
 
+
+
 @end
+
+
+
+#import <UIKit/UIKit.h>
+#import <MediaPlayer/MediaPlayer.h>
 
 @interface CDVSound : CDVPlugin <AVAudioPlayerDelegate, AVAudioRecorderDelegate>
 {
@@ -87,6 +95,8 @@ typedef NSUInteger CDVMediaMsg;
 }
 @property (nonatomic, strong) NSMutableDictionary* soundCache;
 @property (nonatomic, strong) AVAudioSession* avSession;
+@property (strong, nonatomic) AVAudioPlayer *audioPlayer;
+@property (nonatomic, strong) NSString* mediaIdString;
 
 - (void)startPlayingAudio:(CDVInvokedUrlCommand*)command;
 - (void)pausePlayingAudio:(CDVInvokedUrlCommand*)command;
@@ -96,6 +106,8 @@ typedef NSUInteger CDVMediaMsg;
 - (void)getCurrentPositionAudio:(CDVInvokedUrlCommand*)command;
 
 - (BOOL)hasAudioSession;
+
+- (void)update;
 
 // helper methods
 - (NSURL*)urlForRecording:(NSString*)resourcePath;
